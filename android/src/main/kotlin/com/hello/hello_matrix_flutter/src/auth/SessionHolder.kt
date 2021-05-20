@@ -6,9 +6,8 @@ import org.matrix.android.sdk.api.Matrix.Companion.getInstance
 import org.matrix.android.sdk.api.session.Session
 
 object SessionHolder {
-
-    var appContext: Context? = null
+    var appContext: Context? = AppSession.applicationContext
     var matrixSession: Session? = null
     val matrixInstance: Matrix
-        get() = getInstance(appContext!!)
+        get() = getInstance(AppSession.applicationContext)
 }

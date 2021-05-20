@@ -4,6 +4,7 @@ import android.content.Context;
 
 import androidx.room.Room;
 
+import com.hello.hello_matrix_flutter.src.auth.AppSession;
 import com.hello.hello_matrix_flutter.src.auth.SessionHolder;
 
 public class DatabaseClient {
@@ -22,7 +23,7 @@ public class DatabaseClient {
 
     public static synchronized DatabaseClient getInstance() {
         if (mInstance == null) {
-            mInstance = new DatabaseClient(SessionHolder.INSTANCE.getAppContext());
+            mInstance = new DatabaseClient(AppSession.applicationContext);
         }
         return mInstance;
     }

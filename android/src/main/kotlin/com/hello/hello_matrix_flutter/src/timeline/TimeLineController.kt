@@ -23,28 +23,36 @@ import java.util.*
 import kotlin.collections.HashMap
 
 
-class TimeLineController(var roomId: String?) : Timeline.Listener, EventChannel.StreamHandler {
+class TimeLineController(var roomId: String?) : Timeline.Listener/*, EventChannel.StreamHandler*/ {
     var _tag = "ChatTimeLine"
     var room: Room? = null
-    private var timeLineEventChannel: EventChannel? = null
-    var eventSink: EventSink? = null
+    lateinit var timeLineEventChannel: EventChannel
+    //var timelineStreamHandler = TimeLineStreamHandler
+    //var eventSink: EventSink? = null
     var typingUsersStreamHandler: TypingUsersStreamHandler? = null
     var timeline: Timeline? = null
     var timelineSettings = TimelineSettings(
             10,
             true)
 
-    private fun init() {
-        Log.i(_tag,"Timeline ctrl initiated")
+    fun init() {
+        Log.i(_tag, "Timeline ctrl initiated")
         room = SessionHolder.matrixSession!!.getRoom(roomId!!)
         timeline = room!!.createTimeline(null, timelineSettings)
         timeline!!.addListener(this)
         timeline!!.isLive
         timeline!!.start()
-        timeLineEventChannel = EventChannel(PluginBindingHolder.flutterPluginBinding?.binaryMessenger, "hello_matrix_flutter/timelineEvents")
-        timeLineEventChannel!!.setStreamHandler(this)
+        Log.i(_tag, "before check")
+        if (PluginBindingHolder.flutterPluginBinding == null) {
+            Log.i(_tag, "flutterPluginBinding is null")
+        }
 
+       /* timeLineEventChannel = EventChannel(PluginBindingHolder.flutterPluginBinding.binaryMessenger, "hello_matrix_flutter/timelineEvents")
+        timeLineEventChannel.setStreamHandler(timelineStreamHandler)*/
+        /*timeLineEventChannel = EventChannel(PluginBindingHolder.flutterPluginBinding?.binaryMessenger, "hello_matrix_flutter/timelineEvents")
+        timeLineEventChannel!!.setStreamHandler(this)*/
         //start users typing tracker
+
         typingUsersStreamHandler = TypingUsersStreamHandler(room!!)
     }
 
@@ -60,7 +68,7 @@ class TimeLineController(var roomId: String?) : Timeline.Listener, EventChannel.
     //@RequiresApi(api = Build.VERSION_CODES.N)
     override fun onTimelineUpdated(list: List<TimelineEvent>) {
         Log.i(_tag, "onTimelineUpdated")
-        if (eventSink != null) {
+        if (TimeLineStreamHandler.eventSink != null) {
             val events: MutableList<TimeLineEventLite> = ArrayList()
 
             list.forEach { event ->
@@ -84,7 +92,7 @@ class TimeLineController(var roomId: String?) : Timeline.Listener, EventChannel.
                 Log.i(_tag, "type " + event.root.type)
                 //Log.i(_tag,"clear type "+event.getRoot().getType());
                 //Log.i(_tag,"clear content "+event.getRoot().getClearContent());
-                Log.i(_tag,"timeLineEventLite clear content "+timeLineEventLite.clearedContent);
+                Log.i(_tag, "timeLineEventLite clear content " + timeLineEventLite.clearedContent);
                 events.add(timeLineEventLite)
             }
             val jsonArrayEvents = JSONArray()
@@ -104,7 +112,7 @@ class TimeLineController(var roomId: String?) : Timeline.Listener, EventChannel.
                     e.printStackTrace()
                 }
             }
-            eventSink!!.success(jsonArrayEvents.toString())
+            TimeLineStreamHandler.eventSink!!.success(jsonArrayEvents.toString())
         }
     }
 
@@ -115,21 +123,22 @@ class TimeLineController(var roomId: String?) : Timeline.Listener, EventChannel.
         typingUsersStreamHandler!!.disposeTypingTracker()
     }
 
-    override fun onListen(arguments: Any?, events: EventSink?) {
-        eventSink = events
+    /*override fun onListen(arguments: Any?, events: EventSink?) {
         Log.i(_tag, "onListenEvents")
+        eventSink = events
     }
 
     override fun onCancel(arguments: Any?) {
-        eventSink = null
         Log.i(_tag, "onCancelEvents")
-    }
+        eventSink = null
+
+    }*/
 
     //region Supportive methods
     fun paginateBackward() {
         //when this is called, paginate backwards and onTimeLineUpdated is called
         if (timeline!!.hasMoreToLoad(Timeline.Direction.BACKWARDS)) {
-            timeline!!.paginate(Timeline.Direction.BACKWARDS, 10)
+            timeline!!.paginate(Timeline.Direction.BACKWARDS, 20)
             HelloMatrixFlutterPluginMethodChannel.instance?.result?.success(true)
         } else {
             HelloMatrixFlutterPluginMethodChannel.instance?.result?.success(false)
@@ -146,9 +155,9 @@ class TimeLineController(var roomId: String?) : Timeline.Listener, EventChannel.
         HelloMatrixFlutterPluginMethodChannel.instance?.result?.success(true)
     } //endregion
 
-    init {
-        init()
-    }
+     init {
+         init()
+     }
 
     private fun handleClearedContent(content: Content): String {
         var decoded = "{}"
@@ -160,26 +169,26 @@ class TimeLineController(var roomId: String?) : Timeline.Listener, EventChannel.
                 decoded = JSONObject(content).toString()
             }
             "m.image" -> {
-                Log.i(_tag,"img content ${content["url"].toString()}")
+                Log.i(_tag, "img content ${content["url"].toString()}")
 
-                Log.i(_tag,"img content full ${getClearedFullUrl(content["url"].toString())}")
-                Log.i(_tag,"img content thumb ${getClearedThumbUrl(content["url"].toString())}")
+                Log.i(_tag, "img content full ${getClearedFullUrl(content["url"].toString())}")
+                Log.i(_tag, "img content thumb ${getClearedThumbUrl(content["url"].toString())}")
 
 
-                var full:String? = null
-                var thumb:String?= null
-                var local:String?= null
+                var full: String? = null
+                var thumb: String? = null
+                var local: String? = null
 
-                var isLocal :Boolean = URLUtil.isFileUrl(content["url"].toString())
-                if(isLocal){
+                var isLocal: Boolean = URLUtil.isFileUrl(content["url"].toString())
+                if (isLocal) {
                     var uri: Uri = Uri.parse(content["url"].toString())
                     local = uri.path
-                }else{
+                } else {
                     full = getClearedFullUrl(content["url"].toString())
                     thumb = getClearedThumbUrl(content["url"].toString())
                 }
 
-                val map:HashMap<String, String?> = HashMap<String, String?>()
+                val map: HashMap<String, String?> = HashMap<String, String?>()
                 map["msgtype"] = "m.image"
                 map["full"] = full
                 map["thumb"] = thumb
@@ -203,9 +212,9 @@ class TimeLineController(var roomId: String?) : Timeline.Listener, EventChannel.
     private fun getClearedThumbUrl(mxUrl: String): String? {
         return SessionHolder.matrixSession?.contentUrlResolver()?.resolveThumbnail(
                 contentUrl = mxUrl,
-                height = 500,
-                width = 500,
-                method = ContentUrlResolver.ThumbnailMethod.CROP
+                height = 600,
+                width = 600,
+                method = ContentUrlResolver.ThumbnailMethod.SCALE
         )
     }
 }

@@ -4,9 +4,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.StrictMode
 import android.util.Log
-import com.hello.hello_matrix_flutter.src.auth.SessionHolder.appContext
-import com.hello.hello_matrix_flutter.src.auth.SessionHolder.matrixInstance
-import com.hello.hello_matrix_flutter.src.auth.SessionHolder.matrixSession
+import com.hello.hello_matrix_flutter.src.auth.SessionHolder
 import com.hello.hello_matrix_flutter.src.directory.DirectoryClient
 import com.hello.hello_matrix_flutter.src.directory.DirectoryController
 import com.hello.hello_matrix_flutter.src.storage.DataStorage
@@ -26,7 +24,7 @@ class LoginController {
    val _tag = "LoginController"
     var directoryController = DirectoryController()
     fun checkSession(result: MethodChannel.Result) {
-        val lastSession = matrixSession
+        val lastSession = SessionHolder.matrixSession
         if (lastSession == null) {
             result.success(false)
             return
@@ -41,6 +39,12 @@ class LoginController {
 
     //main login logic
     fun login(homeServer: String, username: String, password: String) = runBlocking<Unit> {
+
+        var ctx = AppSession.applicationContext
+
+        if(ctx==null){
+            Log.i("nuuu","ctx null")
+        }
 
         //allow network in main thread
         val policy: StrictMode.ThreadPolicy  = StrictMode.ThreadPolicy.Builder().permitAll().build()
@@ -98,7 +102,6 @@ class LoginController {
         //save profile data in the shared storage
         val dataStorage = DataStorage()
         dataStorage.storeStringData(key = DataStorage.KEY_PROFILE_STORAGE,data = profileData)
-
     }
 
     fun logout() = runBlocking<Unit> {
@@ -186,12 +189,12 @@ class LoginController {
         } catch (failure: Throwable) {
             return false
         }
-        matrixInstance.authenticationService().getLoginFlow(homeServerConnectionConfig)
+        SessionHolder.matrixInstance.authenticationService().getLoginFlow(homeServerConnectionConfig)
         //continue login
-        val loginWizard: LoginWizard? = appContext?.let { Matrix.getInstance(it).authenticationService().getLoginWizard() }
+        val loginWizard: LoginWizard? = SessionHolder.appContext?.let { Matrix.getInstance(it).authenticationService().getLoginWizard() }
         val session: Session = loginWizard?.login(login = userName, password = password, deviceName = (Build.MANUFACTURER + Build.MODEL))
                 ?: return false
-        matrixSession = session
+        SessionHolder.matrixSession = session
         session?.open()
         session?.startSync(true)
         return true
@@ -199,8 +202,8 @@ class LoginController {
 
     //step 4
     private suspend fun setDisplayName(displayName: String): Boolean {
-        val userId = matrixSession?.myUserId
-        val r = matrixSession?.setDisplayName(userId = userId!!, newDisplayName = displayName)
+        val userId = SessionHolder.matrixSession?.myUserId
+        val r = SessionHolder.matrixSession?.setDisplayName(userId = userId!!, newDisplayName = displayName)
         return if (r == null) {
             logout();
             false
@@ -210,12 +213,12 @@ class LoginController {
     }
 
     private suspend fun _logout(): Boolean {
-        if (matrixSession == null) {
+        if (SessionHolder.matrixSession == null) {
             Log.i(_tag, "Session is null")
             return false
         }
         return try {
-            matrixSession!!.signOut(signOutFromHomeserver = true)
+            SessionHolder.matrixSession!!.signOut(signOutFromHomeserver = true)
             val dataStorage = DataStorage()
             dataStorage.eraseAllData()
             DirectoryController().eraseDirectory()

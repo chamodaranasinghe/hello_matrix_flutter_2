@@ -3,9 +3,11 @@ package com.hello.hello_matrix_flutter.src.rooms
 import android.content.ContentResolver
 import android.net.Uri
 import android.webkit.MimeTypeMap
+import com.hello.hello_matrix_flutter.PluginBindingHolder
 import com.hello.hello_matrix_flutter.src.auth.SessionHolder
 import com.hello.hello_matrix_flutter.src.timeline.TimeLineController
 import io.flutter.Log
+import io.flutter.plugin.common.EventChannel
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.matrix.android.sdk.api.MatrixCallback
@@ -63,6 +65,7 @@ class RoomController {
 
    
     fun sendSingleImageMessage(roomId: String,body: String?, path: String){
+
         var room: Room? = SessionHolder.matrixSession?.getRoom(roomId)
         SessionHolder.matrixSession?.myUserId?.let { Log.i(_tag, it) }
         room?.roomId?.let { Log.i(_tag, it) }
@@ -134,10 +137,12 @@ class RoomController {
             MethodChannelInstance?.result?.success(true)
         }
     }
-
     fun createTimeLine(roomId: String?) {
-        Log.i(_tag,"timelineCtrlInited");
+        Log.i(_tag,"timelineCtrlInited")
         timeLineController = TimeLineController(roomId)
+        timeLineController?.init()
+        Log.i(_tag,"timelineCtrlInited called")
+        MethodChannelInstance?.result?.success(true)
     }
 
 

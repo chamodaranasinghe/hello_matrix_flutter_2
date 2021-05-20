@@ -43,7 +43,8 @@ class RoomListStreamHandler : EventChannel.StreamHandler {
                 if (roomSummary.otherMemberIds.isNotEmpty()) {
                     val userProfile = DirectoryConnector.pullUserProfile(roomSummary.otherMemberIds[0])
                     roomSummaryLite.otherUserMatrixId = roomSummary?.otherMemberIds[0]
-                    roomSummaryLite.otherUserHelloId = userProfile!!.helloId
+                    val homeServerHost = SessionHolder.matrixSession!!.sessionParams.homeServerHost
+                    roomSummaryLite.otherUserHelloId = roomSummaryLite.otherUserMatrixId.toString().replace(homeServerHost!!, "").replace(":", "").replace("@", "")
                     if (userProfile != null) {
                         roomSummaryLite.otherMemberDisplayName = userProfile.firstName + " " + userProfile.lastName
                         roomSummaryLite.otherMemberThumbnail = userProfile.photoThumbnail
@@ -83,6 +84,7 @@ class RoomListStreamHandler : EventChannel.StreamHandler {
                     }
                     j.put("otherMemberDisplayName", roomLite.otherMemberDisplayName)
                     j.put("otherMemberThumbnail", roomLite.otherMemberThumbnail)
+                    j.put("otherUserHelloId", roomLite.otherUserHelloId)
                     jsonArrayRooms.put(j)
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -93,6 +95,7 @@ class RoomListStreamHandler : EventChannel.StreamHandler {
     }
 
     override fun onListen(arguments: Any?, events: EventSink?) {
+        Log.i(_tag, "onListenEvents")
         if (SessionHolder.matrixSession == null) {
             return
         }
